@@ -1,0 +1,54 @@
+name: Сбор цен PS5
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 05:00 UTC = 10:00 по Ташкенту (GitHub может запустить с опозданием до ~30 минут)
+  workflow_dispatch:       # кнопка "Обновить" на странице и ручной запуск
+    inputs:
+      telegram:
+        description: 'Отправить сводку в Telegram'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # сохранить историю в репозиторий
+  pages: write      # выложить страницу
+  id-token: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать цены с OLX.uz
+        shell: pwsh
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TG_SEND: ${{ github.event_name != 'workflow_dispatch' || inputs.telegram }}
+        run: |
+          if ($env:TG_SEND -eq 'true') { ./ps5-tracker.ps1 } else { ./ps5-tracker.ps1 -NoTelegram }
+
+      - name: Сохранить историю в репозиторий
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/listings.csv data/summary.txt docs
+          git diff --cached --quiet || git commit -m "Цены PS5 за $(TZ=Asia/Tashkent date +%F)"
+          git push
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v4

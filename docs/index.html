@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Цены PS5 OLX</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2;
+  --surface-1: #fcfcfb;
+  --border: #e4e2dc;
+  --grid: #ecebe6;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #7a7974;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --good: #006300;
+  --bad: #b42323;
+  --chip: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface-1: #1a1a19;
+    --border: #2e2e2b;
+    --grid: #262624;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --good: #3fbf5a;
+    --bad: #ef7a7a;
+    --chip: #262624;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface-1: #1a1a19;
+  --border: #2e2e2b;
+  --grid: #262624;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8f8e86;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --good: #3fbf5a;
+  --bad: #ef7a7a;
+  --chip: #262624;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text-primary);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 1100px; margin: 0 auto; padding: 28px 16px 48px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 20px; }
+h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--text-secondary); margin: 0; }
+h2 { font-size: 16px; margin: 0 0 2px; }
+.hint { color: var(--text-muted); font-size: 13px; margin: 0 0 12px; }
+.seg { display: inline-flex; background: var(--chip); border-radius: 8px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px;
+  padding: 5px 14px; border-radius: 6px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn {
+  border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: var(--series-1); color: #fff;
+}
+.btn:disabled { opacity: .6; cursor: default; }
+.panel { font-size: 14px; }
+.panel p { margin: 0 0 8px; }
+.panel ol { margin: 0 0 12px; padding-left: 20px; color: var(--text-secondary); }
+.panel a { color: var(--series-1); }
+.panel .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.panel input {
+  flex: 1 1 240px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-primary); font: inherit;
+}
+#refreshStatus:empty { display: none; }
+#refreshStatus { margin-bottom: 4px; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--text-muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi, .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+.kpi { padding: 14px 16px; }
+.kpi .label { color: var(--text-secondary); font-size: 13px; }
+.kpi .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.kpi .delta { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.delta .down { color: var(--good); } .delta .up { color: var(--bad); }
+.card { padding: 18px 18px 14px; margin-bottom: 16px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+.chart { position: relative; height: 300px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 10px; padding: 0; list-style: none; font-size: 13px; color: var(--text-secondary); }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.legend .dash { background: repeating-linear-gradient(90deg, var(--text-muted) 0 4px, transparent 4px 7px); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 600; color: var(--text-secondary); font-size: 13px; border-bottom: 1px solid var(--border); padding: 8px 8px; }
+td { border-bottom: 1px solid var(--grid); padding: 9px 8px; vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td a { color: var(--text-primary); text-decoration: none; }
+td a:hover { text-decoration: underline; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--chip); color: var(--text-secondary); margin-left: 6px; white-space: nowrap; }
+.tag.new { color: var(--series-1); }
+.scroll { overflow-x: auto; }
+details summary { cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+details[open] summary { margin-bottom: 10px; }
+.note { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+@media (max-width: 560px) { .hide-sm { display: none; } .kpi .value { font-size: 22px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Цены на PS5 на OLX.uz</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Валюта">
+        <button type="button" data-cur="usd" aria-pressed="true">$ (у.е.)</button>
+        <button type="button" data-cur="uzs" aria-pressed="false">сум</button>
+      </div>
+      <button type="button" class="btn" id="refresh">Обновить</button>
+    </div>
+  </header>
+
+  <section class="card panel" id="refreshPanel" hidden>
+    <div id="refreshStatus" role="status" aria-live="polite"></div>
+    <form id="tokenForm" hidden>
+      <p>Кнопке нужен ключ GitHub, который умеет только запускать сбор в этом репозитории. Он сохранится в этом браузере и больше нигде.</p>
+      <ol>
+        <li>Открой <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">создание ключа (fine-grained token)</a>.</li>
+        <li>Repository access: <b>Only select repositories</b> → <b id="repoName"></b>.</li>
+        <li>Permissions → Repository → <b>Actions: Read and write</b>. Больше ничего не включай.</li>
+        <li>Срок действия можно поставить до года. Нажми Generate и вставь ключ сюда:</li>
+      </ol>
+      <div class="row">
+        <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="Ключ GitHub">
+        <button type="submit" class="btn">Сохранить и обновить</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="card">
+    <h2>Средняя, минимальная и максимальная цена</h2>
+    <p class="hint">Без взломанных консолей и явных выбросов. Пунктир: дни, восстановленные по дате публикации (оценка).</p>
+    <ul class="legend">
+      <li><i style="background:var(--series-1)"></i>Средняя</li>
+      <li><i style="background:var(--series-2)"></i>Максимальная</li>
+      <li><i style="background:var(--series-3)"></i>Минимальная</li>
+      <li><i class="dash"></i>Оценка</li>
+    </ul>
+    <div class="chart"><canvas id="cPrice" aria-label="График средней, минимальной и максимальной цены по дням" role="img"></canvas></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Медиана по моделям</h2>
+      <p class="hint">Медиана честнее средней: её не сдвигают единичные дорогие объявления.</p>
+      <ul class="legend" id="modelLegend"></ul>
+      <div class="chart"><canvas id="cModels" aria-label="Медианная цена по моделям по дням" role="img"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>Количество объявлений</h2>
+      <p class="hint">Рост числа предложений обычно тянет цены вниз.</p>
+      <div class="chart"><canvas id="cCount" aria-label="Количество объявлений по дням" role="img"></canvas></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Самые дешёвые предложения</h2>
+    <p class="hint" id="cheapHint"></p>
+    <div class="scroll"><table id="cheap"></table></div>
+    <p class="note">Слишком низкая цена на OLX часто означает скам или «приманку». Проверяй консоль при встрече, не переводи предоплату.</p>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Таблица по дням</summary>
+      <div class="scroll"><table id="daily"></table></div>
+    </details>
+  </section>
+</main>
+
+<script>
+const DATA = {"generated":"24.11.2026 12:05","repo":"","days":[{"date":"2026-11-14","backfill":true,"n":302,"hacked":21,"usd":{"avg":673,"median":600,"min":380,"max":1500},"uzs":{"avg":8120943,"median":7244530,"min":4584738,"max":18097650},"models":{"Digital":{"n":60,"usd":655,"uzs":7902640},"С дисководом":{"n":50,"usd":680,"uzs":8204268},"Pro":{"n":33,"usd":1299,"uzs":15672565},"Не указано":{"n":159,"usd":555,"uzs":6700000}}},{"date":"2026-11-15","backfill":true,"n":304,"hacked":21,"usd":{"avg":673,"median":600,"min":380,"max":1500},"uzs":{"avg":8117719,"median":7244530,"min":4584738,"max":18097650},"models":{"Digital":{"n":60,"usd":655,"uzs":7902640},"С дисководом":{"n":50,"usd":680,"uzs":8204268},"Pro":{"n":33,"usd":1299,"uzs":15672565},"Не указано":{"n":161,"usd":555,"uzs":6700000}}},{"date":"2026-11-16","backfill":true,"n":306,"hacked":21,"usd":{"avg":672,"median":600,"min":380,"max":1500},"uzs":{"avg":8112701,"median":7244530,"min":4584738,"max":18097650},"models":{"Digital":{"n":61,"usd":650,"uzs":7842315},"С дисководом":{"n":50,"usd":680,"uzs":8204268},"Pro":{"n":33,"usd":1299,"uzs":15672565},"Не указано":{"n":162,"usd":558,"uzs":6728228}}},{"date":"2026-11-17","backfill":true,"n":309,"hacked":22,"usd":{"avg":671,"median":601,"min":380,"max":1500},"uzs":{"avg":8099534,"median":7250000,"min":4584738,"max":18097650},"models":{"Digital":{"n":61,"usd":650,"uzs":7842315},"С дисководом":{"n":52,"usd":660,"uzs":7962966},"Pro":{"n":33,"usd":1299,"uzs":15672565},"Не указано":{"n":163,"usd":560,"uzs":6756456}}},{"date":"2026-11-18","backfill":true,"n":315,"hacked":22,"usd":{"avg":677,"median":615,"min":380,"max":1500},"uzs":{"avg":8166068,"median":7420036,"min":4584738,"max":18097650},"models":{"Digital":{"n":63,"usd":660,"uzs":7962966},"С дисководом":{"n":54,"usd":660,"uzs":7962966},"Pro":{"n":35,"usd":1370,"uzs":16529187},"Не указано":{"n":163,"usd":560,"uzs":6756456}}},{"date":"2026-11-19","backfill":true,"n":319,"hacked":22,"usd":{"avg":677,"median":615,"min":380,"max":1500},"uzs":{"avg":8162038,"median":7420036,"min":4584738,"max":18097650},"models":{"Digital":{"n":63,"usd":660,"uzs":7962966},"С дисководом":{"n":54,"usd":660,"uzs":7962966},"Pro":{"n":35,"usd":1370,"uzs":16529187},"Не указано":{"n":167,"usd":560,"uzs":6756456}}},{"date":"2026-11-20","backfill":true,"n":323,"hacked":23,"usd":{"avg":682,"median":620,"min":380,"max":1500},"uzs":{"avg":8227204,"median":7480362,"min":4584738,"max":18097650},"models":{"Digital":{"n":63,"usd":660,"uzs":7962966},"С дисководом":{"n":55,"usd":700,"uzs":8445570},"Pro":{"n":36,"usd":1370,"uzs":16529187},"Не указано":{"n":169,"usd":560,"uzs":6756456}}},{"date":"2026-11-21","backfill":true,"n":329,"hacked":24,"usd":{"avg":681,"median":620,"min":380,"max":1500},"uzs":{"avg":8212870,"median":7480362,"min":4584738,"max":18097650},"models":{"Digital":{"n":64,"usd":665,"uzs":8023292},"С дисководом":{"n":58,"usd":680,"uzs":8204268},"Pro":{"n":36,"usd":1370,"uzs":16529187},"Не указано":{"n":171,"usd":560,"uzs":6756456}}},{"date":"2026-11-22","backfill":true,"n":330,"hacked":24,"usd":{"avg":682,"median":620,"min":380,"max":1500},"uzs":{"avg":8228200,"median":7480362,"min":4584738,"max":18097650},"models":{"Digital":{"n":64,"usd":665,"uzs":8023292},"С дисководом":{"n":58,"usd":680,"uzs":8204268},"Pro":{"n":37,"usd":1370,"uzs":16529187},"Не указано":{"n":171,"usd":560,"uzs":6756456}}},{"date":"2026-11-23","backfill":true,"n":334,"hacked":24,"usd":{"avg":684,"median":620,"min":380,"max":1500},"uzs":{"avg":8250310,"median":7480362,"min":4584738,"max":18097650},"models":{"Digital":{"n":64,"usd":665,"uzs":8023292},"С дисководом":{"n":58,"usd":680,"uzs":8204268},"Pro":{"n":38,"usd":1334,"uzs":16100876},"Не указано":{"n":174,"usd":570,"uzs":6877107}}},{"date":"2026-11-24","backfill":false,"n":336,"hacked":24,"usd":{"avg":684,"median":621,"min":380,"max":1500},"uzs":{"avg":8256499,"median":7490181,"min":4584738,"max":18097650},"models":{"Digital":{"n":64,"usd":665,"uzs":8023292},"С дисководом":{"n":58,"usd":680,"uzs":8204268},"Pro":{"n":38,"usd":1334,"uzs":16100876},"Не указано":{"n":176,"usd":571,"uzs":6888554}}}],"cheapest":[{"title":"Sony PlayStation 5 White 825Gb","model":"Не указано","usd":380,"uzs":4584738,"city":"Ташкент","created":"2025-07-28","url":"https://www.olx.uz/d/obyavlenie/sony-playstation-5-white-825gb-ID472ZH.html","business":false,"isNew":false},{"title":"PS5 Slim Digital 825  ГБ  и 1 ТБ","model":"Digital","usd":400,"uzs":4826040,"city":"Ташкент","created":"2025-04-09","url":"https://www.olx.uz/d/obyavlenie/ps5-slim-digital-825-gb-i-1-tb-ID40PlS.html","business":true,"isNew":false},{"title":"Sony PlayStation 5 Slim Digital Бесплатная доставка","model":"Digital","usd":400,"uzs":4826040,"city":"Ташкент","created":"2026-02-16","url":"https://www.olx.uz/d/obyavlenie/sony-playstation-5-slim-digital-besplatnaya-dostavka-ID4irZk.html","business":true,"isNew":false},{"title":"Playstation 5 Slim гарантия качества скидки доставка","model":"Не указано","usd":400,"uzs":4826040,"city":"Ташкент","created":"2025-01-13","url":"https://www.olx.uz/d/obyavlenie/playstation-5-slim-garantiya-kachestva-skidki-dostavka-ID3Wa7N.html","business":true,"isNew":false},{"title":"Приставка SONY Playstation 5 доставка по городу","model":"Не указано","usd":400,"uzs":4826040,"city":"Ташкент","created":"2023-11-07","url":"https://www.olx.uz/d/obyavlenie/pristavka-sony-playstation-5-dostavka-po-gorodu-ID3srjV.html","business":true,"isNew":false},{"title":"PlayStation 5 SONY Игровая приставка Доставка по городу ! Б/У и Новый","model":"Не указано","usd":400,"uzs":4826040,"city":"Ташкент","created":"2023-10-18","url":"https://www.olx.uz/d/obyavlenie/playstation-5-sony-igrovaya-pristavka-dostavka-po-gorodu-b-u-i-novyy-ID3r2LT.html","business":true,"isNew":false},{"title":"Приставка Игровая 5 Playstation 5 гарантия розница бесплатная доставка","model":"Не указано","usd":405,"uzs":4886366,"city":"Ташкент","created":"2025-01-26","url":"https://www.olx.uz/d/obyavlenie/pristavka-igrovaya-5-playstation-5-garantiya-roznitsa-besplatnaya-dostavka-ID3V2Ss.html","business":true,"isNew":false},{"title":"Ps5 fat digital edition 5mln500 2pult Fifa25 Mortal kombat 11 Ufc4","model":"Digital","usd":414,"uzs":5000000,"city":"Шават","created":"2025-12-23","url":"https://www.olx.uz/d/obyavlenie/ps5-fat-digital-edition-5mln5002pultfifa25mortal-kombat-11ufc4-ID4fpPh.html","business":false,"isNew":false},{"title":"PlayStation 5 Fat - Disc version","model":"С дисководом","usd":414,"uzs":5000000,"city":"Ташкент","created":"2025-08-05","url":"https://www.olx.uz/d/obyavlenie/playstation-5-fat-disc-version-ID47xpa.html","business":false,"isNew":false},{"title":"PlayStation 5 сотилади","model":"Не указано","usd":414,"uzs":5000000,"city":"Кызылтепа","created":"2025-09-01","url":"https://www.olx.uz/d/obyavlenie/playstation-5-sotiladi-ID496bl.html","business":false,"isNew":false},{"title":"Playstation 5 Slim - полностью новая","model":"Не указано","usd":415,"uzs":5007016,"city":"Ташкент","created":"2024-09-10","url":"https://www.olx.uz/d/obyavlenie/playstation-5-slim-polnostyu-novaya-ID3NDIh.html","business":true,"isNew":false},{"title":"Игровая приставка Sony playstation 5 slim digital edition 2025 NEW","model":"Digital","usd":420,"uzs":5067342,"city":"Ташкент","created":"2025-03-12","url":"https://www.olx.uz/d/obyavlenie/igrovaya-pristavka-sony-playstation-5-slim-digital-edition-2025-new-ID3Z1Jp.html","business":true,"isNew":false},{"title":"Игровая Приставка Sony Playstation 5 Slim Розница Бесплатная доставка","model":"Не указано","usd":420,"uzs":5067342,"city":"Ташкент","created":"2025-01-20","url":"https://www.olx.uz/d/obyavlenie/igrovaya-pristavka-sony-playstation-5-slim-roznitsa-besplatnaya-dostavka-ID3WDH6.html","business":true,"isNew":false},{"title":"PlayStation 5 slim + FAT По низкой цене с гарантии","model":"Не указано","usd":420,"uzs":5067342,"city":"Ташкент","created":"2024-04-11","url":"https://www.olx.uz/d/obyavlenie/playstation-5-slim-fat-po-nizkoy-tsene-s-garantii-ID3DIfO.html","business":true,"isNew":false},{"title":"PlayStation 5 [Акция + широкий выбор игр] доставка бесплатна по городу","model":"Не указано","usd":439,"uzs":5296579,"city":"Ташкент","created":"2025-10-31","url":"https://www.olx.uz/d/obyavlenie/playstation-5-aktsiya-shirokiy-vybor-igr-dostavka-besplatna-po-gorodu-ID4cqrG.html","business":true,"isNew":false}],"models":["Digital","С дисководом","Pro","Не указано"]};
+const days = DATA.days;
+let cur = 'usd';
+try { cur = localStorage.getItem('ps5cur') || 'usd'; } catch (e) {}
+
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (n, c = cur) => n == null ? '—' : (c === 'usd'
+  ? '$' + Math.round(n).toLocaleString('ru-RU')
+  : (n >= 1e6 ? (n / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + ' млн сум' : Math.round(n).toLocaleString('ru-RU') + ' сум'));
+const fmtAxis = (n) => cur === 'usd' ? '$' + Math.round(n).toLocaleString('ru-RU') : (n / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' млн';
+const dLabel = (s) => { const [y, m, d] = s.split('-'); return d + '.' + m; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const labels = days.map((d) => dLabel(d.date));
+const last = days[days.length - 1];
+const prev = days.length > 1 ? days[days.length - 2] : null;
+
+document.getElementById('sub').textContent =
+  `Обновлено ${DATA.generated} · ${days.length} дн. истории · ${last.n} объявлений сегодня`;
+
+function deltaHtml(now, before) {
+  if (now == null || before == null) return '&nbsp;';
+  const d = now - before;
+  if (Math.abs(d) < (cur === 'usd' ? 1 : 10000)) return 'без изменений к вчера';
+  const cls = d < 0 ? 'down' : 'up';
+  return `<span class="${cls}">${d < 0 ? '▼' : '▲'} ${fmt(Math.abs(d))}</span> к вчера`;
+}
+
+function renderKpis() {
+  const k = [
+    ['Медиана сегодня', last[cur].median, prev && prev[cur].median],
+    ['Средняя', last[cur].avg, prev && prev[cur].avg],
+    ['Самая дешёвая', last[cur].min, prev && prev[cur].min],
+    ['Самая дорогая', last[cur].max, prev && prev[cur].max],
+  ];
+  document.getElementById('kpis').innerHTML = k.map(([l, v, p]) =>
+    `<div class="kpi"><div class="label">${l}</div><div class="value">${fmt(v)}</div><div class="delta">${deltaHtml(v, p)}</div></div>`
+  ).join('') +
+  `<div class="kpi"><div class="label">Объявлений</div><div class="value">${last.n}</div><div class="delta">${prev ? (last.n - prev.n >= 0 ? '+' : '') + (last.n - prev.n) + ' к вчера' : '&nbsp;'}</div></div>`;
+}
+
+const crosshair = {
+  id: 'crosshair',
+  afterDraw(chart) {
+    const a = chart.tooltip && chart.tooltip.getActiveElements();
+    if (!a || !a.length) return;
+    const x = a[0].element.x, { top, bottom } = chart.chartArea, ctx = chart.ctx;
+    ctx.save(); ctx.strokeStyle = css('--text-muted'); ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.restore();
+  }
+};
+
+const isBf = (i) => days[i] && days[i].backfill;
+const dashSeg = { borderDash: (ctx) => (isBf(ctx.p1DataIndex) ? [5, 4] : undefined) };
+
+function baseOpts(yFmt) {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: css('--surface-1'), titleColor: css('--text-primary'), bodyColor: css('--text-secondary'),
+        borderColor: css('--border'), borderWidth: 1, padding: 10, boxPadding: 4, usePointStyle: true,
+        callbacks: {
+          title: (it) => days[it[0].dataIndex].date.split('-').reverse().join('.') + (isBf(it[0].dataIndex) ? ' (оценка)' : ''),
+          label: (c) => ` ${c.dataset.label}: ${yFmt(c.parsed.y)}`,
+        },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, border: { color: css('--border') }, ticks: { color: css('--text-muted'), maxRotation: 0, autoSkipPadding: 12 } },
+      y: { grid: { color: css('--grid') }, border: { display: false }, ticks: { color: css('--text-muted'), callback: (v) => yFmt === fmt ? fmtAxis(v) : v } },
+    },
+  };
+}
+
+function line(label, data, color) {
+  return {
+    label, data, borderColor: color, backgroundColor: color, borderWidth: 2, tension: 0.25, spanGaps: true,
+    pointRadius: days.length > 30 ? 0 : 3, pointHoverRadius: 5, pointBorderColor: css('--surface-1'), pointBorderWidth: 2,
+    segment: dashSeg,
+  };
+}
+
+let charts = [];
+function renderCharts() {
+  charts.forEach((c) => c.destroy());
+  charts = [];
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  charts.push(new Chart(document.getElementById('cPrice'), {
+    type: 'line', plugins: [crosshair],
+    data: { labels, datasets: [
+      line('Средняя', days.map((d) => d[cur].avg), css('--series-1')),
+      line('Максимальная', days.map((d) => d[cur].max), css('--series-2')),
+      line('Минимальная', days.map((d) => d[cur].min), css('--series-3')),
+    ] },
+    options: baseOpts(fmt),
+  }));
+
+  const mColors = ['--series-1', '--series-2', '--series-3', '--series-4'];
+  document.getElementById('modelLegend').innerHTML = DATA.models.map((m, i) =>
+    `<li><i style="background:var(${mColors[i]})"></i>${esc(m)}</li>`).join('');
+  charts.push(new Chart(document.getElementById('cModels'), {
+    type: 'line', plugins: [crosshair],
+    data: { labels, datasets: DATA.models.map((m, i) =>
+      line(m, days.map((d) => d.models[m] && d.models[m].n ? d.models[m][cur] : null), css(mColors[i]))) },
+    options: baseOpts(fmt),
+  }));
+
+  const blue = css('--series-1');
+  charts.push(new Chart(document.getElementById('cCount'), {
+    type: 'bar',
+    data: { labels, datasets: [{
+      label: 'Объявлений', data: days.map((d) => d.n),
+      backgroundColor: days.map((d) => d.backfill ? blue + '66' : blue),
+      borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 28,
+    }] },
+    options: baseOpts((v) => v + ' шт.'),
+  }));
+}
+
+function renderCheap() {
+  const rows = DATA.cheapest;
+  document.getElementById('cheapHint').textContent = `Топ-${rows.length} за ${last.date.split('-').reverse().join('.')}, без взломанных консолей.`;
+  const alt = cur === 'usd' ? 'uzs' : 'usd';
+  document.getElementById('cheap').innerHTML =
+    `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Объявление</th><th>Модель</th><th class="hide-sm">Город</th></tr></thead><tbody>` +
+    rows.map((r) => `<tr>
+      <td class="num"><b>${fmt(r[cur])}</b></td>
+      <td class="num hide-sm">${fmt(r[alt], alt)}</td>
+      <td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${r.isNew ? '<span class="tag new">новое</span>' : ''}${r.business ? '<span class="tag">магазин</span>' : ''}</td>
+      <td>${esc(r.model)}</td>
+      <td class="hide-sm">${esc(r.city)}</td></tr>`).join('') + '</tbody>';
+}
+
+function renderDaily() {
+  document.getElementById('daily').innerHTML =
+    '<thead><tr><th>Дата</th><th class="num">Объявл.</th><th class="num">Медиана</th><th class="num">Средняя</th><th class="num">Мин</th><th class="num">Макс</th>' +
+    DATA.models.map((m) => `<th class="num hide-sm">${esc(m)}</th>`).join('') + '</tr></thead><tbody>' +
+    days.slice().reverse().map((d) => `<tr><td>${d.date.split('-').reverse().join('.')}${d.backfill ? '<span class="tag">оценка</span>' : ''}</td>
+      <td class="num">${d.n}</td><td class="num">${fmt(d[cur].median)}</td><td class="num">${fmt(d[cur].avg)}</td>
+      <td class="num">${fmt(d[cur].min)}</td><td class="num">${fmt(d[cur].max)}</td>` +
+      DATA.models.map((m) => `<td class="num hide-sm">${d.models[m] && d.models[m].n ? fmt(d.models[m][cur]) : '—'}</td>`).join('') + '</tr>').join('') + '</tbody>';
+}
+
+function renderAll() { renderKpis(); renderCharts(); renderCheap(); renderDaily(); }
+
+document.querySelectorAll('.seg button').forEach((b) => {
+  b.setAttribute('aria-pressed', String(b.dataset.cur === cur));
+  b.addEventListener('click', () => {
+    cur = b.dataset.cur;
+    try { localStorage.setItem('ps5cur', cur); } catch (e) {}
+    document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderAll();
+  });
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderCharts);
+renderAll();
+
+// ---------------------------------------------------------------- Кнопка "Обновить"
+const WORKFLOW = 'collect.yml';
+const panel = document.getElementById('refreshPanel');
+const statusEl = document.getElementById('refreshStatus');
+const form = document.getElementById('tokenForm');
+const btn = document.getElementById('refresh');
+const repo = DATA.repo || (location.hostname.endsWith('.github.io')
+  ? location.hostname.split('.')[0] + '/' + location.pathname.split('/').filter(Boolean)[0] : '');
+const actionsUrl = repo ? `https://github.com/${repo}/actions/workflows/${WORKFLOW}` : '';
+document.getElementById('repoName').textContent = repo || 'репозиторий трекера';
+
+const store = {
+  get() { try { return localStorage.getItem('ps5ghToken') || ''; } catch (e) { return ''; } },
+  set(v) { try { localStorage.setItem('ps5ghToken', v); } catch (e) {} },
+  clear() { try { localStorage.removeItem('ps5ghToken'); } catch (e) {} },
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function say(html) { panel.hidden = false; statusEl.innerHTML = html; }
+
+function gh(path, opts = {}) {
+  return fetch(`https://api.github.com/repos/${repo}${path}`, {
+    ...opts,
+    headers: { Authorization: 'Bearer ' + store.get(), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers || {}) },
+  });
+}
+
+async function waitForRun(since) {
+  for (let i = 0; i < 60; i++) {           // до ~10 минут
+    await sleep(10000);
+    const r = await gh(`/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=5`);
+    if (!r.ok) continue;
+    const run = (await r.json()).workflow_runs.find((x) => new Date(x.created_at).getTime() >= since - 60000);
+    if (!run) { say('Запускаю сбор…'); continue; }
+    if (run.status !== 'completed') { say('Собираю цены с OLX… обычно это 1–2 минуты.'); continue; }
+    return run;
+  }
+  return null;
+}
+
+async function waitForPage() {
+  for (let i = 0; i < 30; i++) {           // до ~5 минут
+    try {
+      const r = await fetch('status.json?t=' + Date.now(), { cache: 'no-store' });
+      if (r.ok && (await r.json()).generated !== DATA.generated) return true;
+    } catch (e) {}
+    await sleep(10000);
+  }
+  return false;
+}
+
+async function refresh() {
+  if (!repo) { say('Кнопка работает на опубликованной странице GitHub Pages. Локально запусти ps5-tracker.ps1.'); return; }
+  if (!store.get()) { panel.hidden = false; form.hidden = false; statusEl.innerHTML = ''; return; }
+  form.hidden = true;
+  btn.disabled = true;
+  const since = Date.now();
+  say('Запускаю сбор…');
+  try {
+    const r = await gh(`/actions/workflows/${WORKFLOW}/dispatches`, {
+      method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { telegram: 'false' } }),
+    });
+    if (r.status === 401 || r.status === 403 || r.status === 404) {
+      store.clear();
+      say('GitHub не принял ключ: он истёк или у него нет права <b>Actions: Read and write</b> для этого репозитория. Создай новый.');
+      form.hidden = false;
+      return;
+    }
+    if (!r.ok) throw new Error('GitHub ответил ' + r.status);
+    const run = await waitForRun(since);
+    if (!run) { say(`Сбор идёт дольше обычного. <a href="${actionsUrl}" target="_blank" rel="noopener">Посмотреть на GitHub</a>`); return; }
+    if (run.conclusion !== 'success') {
+      say(`Сбор завершился с ошибкой. <a href="${run.html_url}" target="_blank" rel="noopener">Подробности</a>`); return;
+    }
+    say('Готово, выкладываю новую версию страницы…');
+    if (await waitForPage()) { say('Обновлено, перезагружаю…'); location.reload(); }
+    else say('Данные собраны, но страница ещё не обновилась. Обнови её через пару минут.');
+  } catch (e) {
+    say(`Не получилось: ${esc(e.message)}. <a href="${actionsUrl}" target="_blank" rel="noopener">Запустить вручную на GitHub</a>`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+btn.addEventListener('click', refresh);
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = document.getElementById('tokenInput').value.trim();
+  if (!v) return;
+  store.set(v);
+  document.getElementById('tokenInput').value = '';
+  refresh();
+});
+</script>
+</body>
+</html>
