@@ -19,7 +19,7 @@ $RxExclude  = 'ps\s?[1-4]\b|пс\s?[1-4]\b|playstation\s?[1-4]\b|xbox|nintendo|s
 # Объявления сразу про несколько моделей ("Fat/Slim/Pro", "с дисководом и без") - цена там "от", портит минимум
 $RxMulti    = '(fat|slim|pro)\s*[/\\|,]\s*(fat|slim|pro)|disk\s*/\s*no\s*disk|и\s+без\s+дисковод|va\s+disksiz'
 # Взломанные / прошитые консоли (у них старая прошивка: GTA 6 и онлайн на них не пойдут)
-$RxHacked   = 'vzlom|vzlim|взлом|прошит|прошив|proshiv|goldhen|jailbreak|yozdir|yozilgan|yozib|записан|\bhen\b|10\.01'
+$RxHacked   = 'vzlom|vzlim|взлом|прошит|прошив|proshiv|goldhen|jailbreak|yozdir|yozilgan|yozib|запис|zapis|\bhen\b|10\.01'
 # Модели
 $RxPro      = '(?<![a-zа-я])pro\b'
 $RxDigital  = 'digital|digtal|dgtil|didjital|диджитал|цифров|без\s?диск|diskovodsiz|diskavodsiz|disksiz|disk\s?siz'

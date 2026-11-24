@@ -3,6 +3,9 @@ name: Сбор цен PS5
 on:
   schedule:
     - cron: '0 5 * * *'   # 05:00 UTC = 10:00 по Ташкенту (GitHub может запустить с опозданием до ~30 минут)
+  push:                    # пересобрать сразу после изменения кода
+    branches: [main]
+    paths: ['ps5-tracker.ps1', 'config.ps1', 'report-template.html', '.github/workflows/collect.yml']
   workflow_dispatch:       # кнопка "Обновить" на странице и ручной запуск
     inputs:
       telegram:
@@ -27,14 +30,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Собрать цены с OLX.uz
         shell: pwsh
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TG_SEND: ${{ github.event_name != 'workflow_dispatch' || inputs.telegram }}
+          TG_SEND: ${{ github.event_name == 'schedule' || inputs.telegram }}
         run: |
           if ($env:TG_SEND -eq 'true') { ./ps5-tracker.ps1 } else { ./ps5-tracker.ps1 -NoTelegram }
 
@@ -46,9 +49,9 @@ jobs:
           git diff --cached --quiet || git commit -m "Цены PS5 за $(TZ=Asia/Tashkent date +%F)"
           git push
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
