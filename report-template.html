@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Цены PS5 OLX</title>
+<title>Цены на PS5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -116,6 +116,9 @@ td a { color: var(--text-primary); text-decoration: none; }
 td a:hover { text-decoration: underline; }
 .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--chip); color: var(--text-secondary); margin-left: 6px; white-space: nowrap; }
 .tag.new { color: var(--series-1); }
+.tag.tg { color: var(--series-3); }
+.src-hint { margin: -8px 0 14px; }
+.src-hint a { color: var(--text-secondary); }
 .scroll { overflow-x: auto; }
 td.posted { white-space: nowrap; font-variant-numeric: tabular-nums; }
 td.posted .ago { color: var(--text-muted); font-size: 12px; }
@@ -129,10 +132,15 @@ details[open] summary { margin-bottom: 10px; }
 <main>
   <header>
     <div>
-      <h1>Цены на PS5 на OLX.uz</h1>
+      <h1>Цены на PS5: OLX.uz и Telegram</h1>
       <p class="sub" id="sub"></p>
     </div>
     <div class="tools">
+      <div class="seg" role="group" aria-label="Источник">
+        <button type="button" data-src="all" aria-pressed="true">Все</button>
+        <button type="button" data-src="olx" aria-pressed="false">OLX</button>
+        <button type="button" data-src="tg" aria-pressed="false">Telegram</button>
+      </div>
       <div class="seg" role="group" aria-label="Валюта">
         <button type="button" data-cur="usd" aria-pressed="true">$ (у.е.)</button>
         <button type="button" data-cur="uzs" aria-pressed="false">сум</button>
@@ -158,11 +166,12 @@ details[open] summary { margin-bottom: 10px; }
     </form>
   </section>
 
+  <p class="hint src-hint" id="srcHint"></p>
   <section class="kpis" id="kpis"></section>
 
   <section class="card">
     <h2>Средняя, минимальная и максимальная цена</h2>
-    <p class="hint">Без взломанных консолей и явных выбросов. Пунктир: дни, восстановленные по дате публикации (оценка).</p>
+    <p class="hint">Без взломанных консолей и явных выбросов. Пунктир: дни OLX, восстановленные по дате публикации (оценка).</p>
     <ul class="legend">
       <li><i style="background:var(--series-1)"></i>Средняя</li>
       <li><i style="background:var(--series-2)"></i>Максимальная</li>
@@ -190,7 +199,7 @@ details[open] summary { margin-bottom: 10px; }
     <h2>Самые дешёвые предложения</h2>
     <p class="hint" id="cheapHint"></p>
     <div class="scroll"><table id="cheap"></table></div>
-    <p class="note">Слишком низкая цена на OLX часто означает скам или «приманку». Проверяй консоль при встрече, не переводи предоплату.</p>
+    <p class="note">Слишком низкая цена часто означает скам или «приманку». Проверяй консоль при встрече, не переводи предоплату.</p>
   </section>
 
   <section class="card">
@@ -203,9 +212,21 @@ details[open] summary { margin-bottom: 10px; }
 
 <script>
 const DATA = /*__DATA__*/null;
-const days = DATA.days;
-let cur = 'usd';
-try { cur = localStorage.getItem('ps5cur') || 'usd'; } catch (e) {}
+let cur = 'usd', src = 'all';
+try { cur = localStorage.getItem('ps5cur') || 'usd'; src = localStorage.getItem('ps5src') || 'all'; } catch (e) {}
+if (!DATA.sources[src]) src = 'all';
+// Текущий источник: дни, последний и предпоследний день, подписи оси
+let days, last, prev, labels;
+function setSource(s) {
+  src = DATA.sources[s] ? s : 'all';
+  days = DATA.sources[src].days;
+  last = days[days.length - 1];
+  prev = days.length > 1 ? days[days.length - 2] : null;
+  labels = days.map((d) => dLabel(d.date));
+}
+// Значение статистики дня в выбранной валюте; у дня без предложений статистики нет
+const val = (d, k) => (d && d[cur] ? d[cur][k] : null);
+const SRC_NAMES = { all: 'все источники', olx: 'OLX', tg: 'Telegram' };
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmt = (n, c = cur) => n == null ? '—' : (c === 'usd'
@@ -214,12 +235,15 @@ const fmt = (n, c = cur) => n == null ? '—' : (c === 'usd'
 const fmtAxis = (n) => cur === 'usd' ? '$' + Math.round(n).toLocaleString('ru-RU') : (n / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' млн';
 const dLabel = (s) => { const [y, m, d] = s.split('-'); return d + '.' + m; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const labels = days.map((d) => dLabel(d.date));
-const last = days[days.length - 1];
-const prev = days.length > 1 ? days[days.length - 2] : null;
-
-document.getElementById('sub').textContent =
-  `Обновлено ${DATA.generated} · ${days.length} дн. истории · ${last.n} объявлений сегодня`;
+function renderHeader() {
+  const nOlx = DATA.sources.olx.days.slice(-1)[0].n, nTg = DATA.sources.tg.days.slice(-1)[0].n;
+  document.getElementById('sub').textContent =
+    `Обновлено ${DATA.generated} · ${days.length} дн. истории · сегодня ${nOlx + nTg} предложений: OLX ${nOlx}, Telegram ${nTg}`;
+  const ch = DATA.tg.channels.map((c) => `<a href="https://t.me/${esc(c)}" target="_blank" rel="noopener">@${esc(c)}</a>`).join(', ');
+  document.getElementById('srcHint').innerHTML = src === 'olx'
+    ? 'Показаны только объявления OLX.uz.'
+    : `${src === 'tg' ? 'Показаны только' : 'OLX.uz и'} Telegram-каналы ${ch}. Пост считается актуальным ${DATA.tg.activeDays} дн. после публикации, повторы одного предложения не дублируются.`;
+}
 
 function deltaHtml(now, before) {
   if (now == null || before == null) return '&nbsp;';
@@ -231,15 +255,15 @@ function deltaHtml(now, before) {
 
 function renderKpis() {
   const k = [
-    ['Медиана сегодня', last[cur].median, prev && prev[cur].median],
-    ['Средняя', last[cur].avg, prev && prev[cur].avg],
-    ['Самая дешёвая', last[cur].min, prev && prev[cur].min],
-    ['Самая дорогая', last[cur].max, prev && prev[cur].max],
+    ['Медиана сегодня', val(last, 'median'), val(prev, 'median')],
+    ['Средняя', val(last, 'avg'), val(prev, 'avg')],
+    ['Самая дешёвая', val(last, 'min'), val(prev, 'min')],
+    ['Самая дорогая', val(last, 'max'), val(prev, 'max')],
   ];
   document.getElementById('kpis').innerHTML = k.map(([l, v, p]) =>
     `<div class="kpi"><div class="label">${l}</div><div class="value">${fmt(v)}</div><div class="delta">${deltaHtml(v, p)}</div></div>`
   ).join('') +
-  `<div class="kpi"><div class="label">Объявлений</div><div class="value">${last.n}</div><div class="delta">${prev ? (last.n - prev.n >= 0 ? '+' : '') + (last.n - prev.n) + ' к вчера' : '&nbsp;'}</div></div>`;
+  `<div class="kpi"><div class="label">Предложений</div><div class="value">${last.n}</div><div class="delta">${prev ? (last.n - prev.n >= 0 ? '+' : '') + (last.n - prev.n) + ' к вчера' : '&nbsp;'}</div></div>`;
 }
 
 const crosshair = {
@@ -294,9 +318,9 @@ function renderCharts() {
   charts.push(new Chart(document.getElementById('cPrice'), {
     type: 'line', plugins: [crosshair],
     data: { labels, datasets: [
-      line('Средняя', days.map((d) => d[cur].avg), css('--series-1')),
-      line('Максимальная', days.map((d) => d[cur].max), css('--series-2')),
-      line('Минимальная', days.map((d) => d[cur].min), css('--series-3')),
+      line('Средняя', days.map((d) => val(d, 'avg')), css('--series-1')),
+      line('Максимальная', days.map((d) => val(d, 'max')), css('--series-2')),
+      line('Минимальная', days.map((d) => val(d, 'min')), css('--series-3')),
     ] },
     options: baseOpts(fmt),
   }));
@@ -315,7 +339,7 @@ function renderCharts() {
   charts.push(new Chart(document.getElementById('cCount'), {
     type: 'bar',
     data: { labels, datasets: [{
-      label: 'Объявлений', data: days.map((d) => d.n),
+      label: 'Предложений', data: days.map((d) => d.n),
       backgroundColor: days.map((d) => d.backfill ? blue + '66' : blue),
       borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 28,
     }] },
@@ -337,18 +361,23 @@ function postedHtml(created) {
 }
 
 function renderCheap() {
-  const rows = DATA.cheapest;
-  document.getElementById('cheapHint').textContent = `Топ-${rows.length} за ${last.date.split('-').reverse().join('.')}, без взломанных консолей.`;
+  const rows = DATA.sources[src].cheapest || [];
+  document.getElementById('cheapHint').textContent = rows.length
+    ? `Топ-${rows.length} за ${last.date.split('-').reverse().join('.')} (${SRC_NAMES[src]}), без взломанных консолей.`
+    : `За ${last.date.split('-').reverse().join('.')} предложений нет (${SRC_NAMES[src]}).`;
   const alt = cur === 'usd' ? 'uzs' : 'usd';
+  const where = (r) => (r.origin || '').startsWith('tg:')
+    ? `<span class="tag tg">Telegram @${esc(r.origin.slice(3))}</span>`
+    : '<span class="tag">OLX</span>' + (r.business ? '<span class="tag">магазин</span>' : '');
   document.getElementById('cheap').innerHTML =
-    `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Объявление</th><th>Модель</th><th>Выложено</th><th class="hide-sm">Город</th></tr></thead><tbody>` +
+    `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Предложение</th><th>Модель</th><th>Выложено</th><th class="hide-sm">Город</th></tr></thead><tbody>` +
     rows.map((r) => `<tr>
       <td class="num"><b>${fmt(r[cur])}</b></td>
       <td class="num hide-sm">${fmt(r[alt], alt)}</td>
-      <td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${r.isNew ? '<span class="tag new">новое</span>' : ''}${r.business ? '<span class="tag">магазин</span>' : ''}</td>
+      <td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${r.isNew ? '<span class="tag new">новое</span>' : ''}${where(r)}</td>
       <td>${esc(r.model)}</td>
       <td class="posted">${postedHtml(r.created)}</td>
-      <td class="hide-sm">${esc(r.city)}</td></tr>`).join('') + '</tbody>';
+      <td class="hide-sm">${esc(r.city || '—')}</td></tr>`).join('') + '</tbody>';
 }
 
 function renderDaily() {
@@ -356,22 +385,29 @@ function renderDaily() {
     '<thead><tr><th>Дата</th><th class="num">Объявл.</th><th class="num">Медиана</th><th class="num">Средняя</th><th class="num">Мин</th><th class="num">Макс</th>' +
     DATA.models.map((m) => `<th class="num hide-sm">${esc(m)}</th>`).join('') + '</tr></thead><tbody>' +
     days.slice().reverse().map((d) => `<tr><td>${d.date.split('-').reverse().join('.')}${d.backfill ? '<span class="tag">оценка</span>' : ''}</td>
-      <td class="num">${d.n}</td><td class="num">${fmt(d[cur].median)}</td><td class="num">${fmt(d[cur].avg)}</td>
-      <td class="num">${fmt(d[cur].min)}</td><td class="num">${fmt(d[cur].max)}</td>` +
+      <td class="num">${d.n}</td><td class="num">${fmt(val(d, 'median'))}</td><td class="num">${fmt(val(d, 'avg'))}</td>
+      <td class="num">${fmt(val(d, 'min'))}</td><td class="num">${fmt(val(d, 'max'))}</td>` +
       DATA.models.map((m) => `<td class="num hide-sm">${d.models[m] && d.models[m].n ? fmt(d.models[m][cur]) : '—'}</td>`).join('') + '</tr>').join('') + '</tbody>';
 }
 
-function renderAll() { renderKpis(); renderCharts(); renderCheap(); renderDaily(); }
+function renderAll() { renderHeader(); renderKpis(); renderCharts(); renderCheap(); renderDaily(); }
 
-document.querySelectorAll('.seg button').forEach((b) => {
-  b.setAttribute('aria-pressed', String(b.dataset.cur === cur));
-  b.addEventListener('click', () => {
-    cur = b.dataset.cur;
-    try { localStorage.setItem('ps5cur', cur); } catch (e) {}
-    document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    renderAll();
+// Переключатели валюты и источника: каждый держит своё состояние и пересобирает страницу
+function bindSeg(attr, get, set, key) {
+  const btns = document.querySelectorAll(`.seg button[data-${attr}]`);
+  btns.forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset[attr] === get()));
+    b.addEventListener('click', () => {
+      set(b.dataset[attr]);
+      try { localStorage.setItem(key, get()); } catch (e) {}
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      renderAll();
+    });
   });
-});
+}
+setSource(src);
+bindSeg('cur', () => cur, (v) => { cur = v; }, 'ps5cur');
+bindSeg('src', () => src, (v) => setSource(v), 'ps5src');
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderCharts);
 renderAll();
 

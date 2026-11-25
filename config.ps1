@@ -7,9 +7,20 @@ $Queries    = @('ps5', 'playstation 5', 'плейстейшн 5')
 $PauseMs    = 1200                                  # пауза между запросами, чтобы не нагружать OLX
 $Headers    = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'; 'Accept-Language' = 'ru' }
 
+# --- Telegram-каналы с ценами ---
+# Только публичные каналы с включённым веб-просмотром (открываются по адресу t.me/s/имя).
+# Kompyuter_playstation_texnikaa не добавлен: у него веб-просмотр выключен, без аккаунта его не прочитать.
+$TgChannels    = @('topgameuzb', 'pllayboxuz', 'ps_malika_a34')
+$TgActiveDays  = 4     # сколько дней после публикации пост считается актуальным предложением
+$TgHistoryDays = 10    # на сколько дней назад восстанавливать историю из каналов (это настоящие посты, не оценка)
+$RxTgUsd = '(?<![\d+])(\d{1,3}(?:[ .,]\d{3})+|\d{2,5})\s?(?:\$|у\.?\s?е\b|y\.?\s?e\b|dollar|долл)|\$\s?(\d{2,5})'
+$RxTgUzs = '(?<![\d+])(\d{1,3}(?:[ .,]\d{3}){2,}|\d{6,9})\s?(?:сум|so[''`\u2019\u02BB]?m\b|sum\b|uzs)'
+$RxTgMln = '(?<![\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?(?:млн|mln|million|миллион)'
+$RxTgCity = 'toshkent|ташкент|tashkent|malika'
+
 # --- Фильтры по заголовку (регулярки, регистр не важен) ---
 # В заголовке обязательно должно быть упоминание PS5
-$RxIsPs5    = 'ps\s?5|пс\s?5|playstation\s?5|плейстейшн\s?5|плейстейшен\s?5|playsteyshon\s?5'
+$RxIsPs5    = 'ps\s?5|пс\s?5|play\s?station\w{0,2}\W{0,3}5|плейстейшн\s?5|плейстейшен\s?5|playsteyshon\s?5'
 # Мусор: другие консоли, оптовые "приманки", аренда, аксессуары, игры, ремонт, "куплю"
 $RxExclude  = 'ps\s?[1-4]\b|пс\s?[1-4]\b|playstation\s?[1-4]\b|xbox|nintendo|switch|optom|оптом|оптов|optov|аренд|arenda|prokat|прокат|ijara|' +
               'куплю|sotib\s?olaman|обмен|almash|джойстик|джостик|jostik|joystik|djoystik|геймпад|gamepad|dualsense|controller|' +
