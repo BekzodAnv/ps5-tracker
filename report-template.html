@@ -137,10 +137,9 @@ details[open] summary { margin-bottom: 10px; }
     </div>
     <div class="tools">
       <div class="seg" role="group" aria-label="Источник">
-        <button type="button" data-src="all" aria-pressed="true">Рынок</button>
+        <button type="button" data-src="all" aria-pressed="true">Все</button>
         <button type="button" data-src="olx" aria-pressed="false">OLX</button>
         <button type="button" data-src="tg" aria-pressed="false">Telegram</button>
-        <button type="button" data-src="shop" aria-pressed="false">Магазины</button>
       </div>
       <div class="seg" role="group" aria-label="Валюта">
         <button type="button" data-cur="usd" aria-pressed="true">$ (у.е.)</button>
@@ -227,7 +226,7 @@ function setSource(s) {
 }
 // Значение статистики дня в выбранной валюте; у дня без предложений статистики нет
 const val = (d, k) => (d && d[cur] ? d[cur][k] : null);
-const SRC_NAMES = { all: 'рынок: OLX и Telegram', olx: 'OLX', tg: 'Telegram', shop: 'магазины' };
+const SRC_NAMES = { all: 'OLX и Telegram', olx: 'OLX', tg: 'Telegram' };
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmt = (n, c = cur) => n == null ? '—' : (c === 'usd'
@@ -238,17 +237,15 @@ const dLabel = (s) => { const [y, m, d] = s.split('-'); return d + '.' + m; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function renderHeader() {
   const lastOf = (k) => (DATA.sources[k] ? DATA.sources[k].days.slice(-1)[0] : { n: 0 });
-  const nOlx = lastOf('olx').n, nTg = lastOf('tg').n, shop = lastOf('shop');
+  const nOlx = lastOf('olx').n, nTg = lastOf('tg').n;
   document.getElementById('sub').textContent =
-    `Обновлено ${DATA.generated} · ${days.length} дн. истории · сегодня с рук ${nOlx + nTg} (OLX ${nOlx}, Telegram ${nTg}), в магазинах ${shop.n}`;
+    `Обновлено ${DATA.generated} · ${days.length} дн. истории · сегодня ${nOlx + nTg} предложений: OLX ${nOlx}, Telegram ${nTg}`;
   const ch = DATA.tg.channels.map((c) => `<a href="https://t.me/${esc(c)}" target="_blank" rel="noopener">@${esc(c)}</a>`).join(', ');
   const tgNote = `Пост считается актуальным ${DATA.tg.activeDays} дн. после публикации, повторы одного предложения не дублируются.`;
-  const shopNote = shop.n ? ` Новая в магазинах сегодня: медиана <b>${fmt(val(shop, 'median'))}</b>, от ${fmt(val(shop, 'min'))}.` : '';
   const hints = {
-    all: `С рук: OLX.uz и Telegram-каналы ${ch}. ${tgNote} Магазины считаются отдельно.${shopNote}`,
-    olx: `Показаны только объявления OLX.uz.${shopNote}`,
-    tg: `Показаны только Telegram-каналы ${ch}. ${tgNote}${shopNote}`,
-    shop: `Новые консоли в наличии в магазинах ${DATA.shops.join(' и ')}: с гарантией, обычно дороже, чем с рук. История магазинов копится с первого дня сбора.`,
+    all: `OLX.uz и Telegram-каналы ${ch}. ${tgNote}`,
+    olx: 'Показаны только объявления OLX.uz.',
+    tg: `Показаны только Telegram-каналы ${ch}. ${tgNote}`,
   };
   document.getElementById('srcHint').innerHTML = hints[src];
 }
@@ -376,9 +373,7 @@ function renderCheap() {
   const alt = cur === 'usd' ? 'uzs' : 'usd';
   const where = (r) => {
     const o = r.origin || '';
-    if (o.startsWith('tg:')) return `<span class="tag tg">Telegram @${esc(o.slice(3))}</span>`;
-    if (o.startsWith('shop:')) return `<span class="tag">${esc(o.slice(5) === 'asaxiy' ? 'Asaxiy' : o.slice(5) === 'glotr' ? 'Glotr' : o.slice(5))}</span><span class="tag">новая</span>`;
-    return '<span class="tag">OLX</span>' + (r.business ? '<span class="tag">магазин</span>' : '');
+    if (o.startsWith('tg:')) return `<span class="tag tg">Telegram @${esc(o.slice(3))}</span>`;    return '<span class="tag">OLX</span>' + (r.business ? '<span class="tag">магазин</span>' : '');
   };
   document.getElementById('cheap').innerHTML =
     `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Предложение</th><th>Модель</th><th>Выложено</th><th class="hide-sm">Город</th></tr></thead><tbody>` +

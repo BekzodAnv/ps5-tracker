@@ -19,14 +19,6 @@ $RxTgUzs = '(?<![\d+])(\d{1,3}(?:[ .,]\d{3}){2,}|\d{6,9})\s?(?:сум|so[''`\u20
 $RxTgMln = '(?<![\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?(?:млн|mln|million|миллион)\.?\s?(?:сум|so[''`\u2019\u02BB]?m\b|sum\b|uzs)'
 $RxTgCity = 'toshkent|ташкент|tashkent|malika'
 
-# --- Магазины (новые консоли с гарантией) ---
-# Считаются отдельным источником и не смешиваются с ценами "с рук" (OLX + Telegram).
-$ShopsEnabled   = $true
-$AsaxiyUrl      = 'https://asaxiy.uz/product?key=playstation+5'
-$GlotrUrl       = 'https://glotr.uz/search/?term=playstation+5'
-# В магазинах в выдаче много аксессуаров "для PS5" / "PS5 uchun" - их отсекаем
-$RxShopExclude  = '\bдля\b|uchun|камера|kamera|гарнитур|garnitura|шлем|станци|stansiya|дисковод для|drayver uchun'
-
 # --- Фильтры по заголовку (регулярки, регистр не важен) ---
 # В заголовке обязательно должно быть упоминание PS5
 $RxIsPs5    = 'ps\s?5|пс\s?5|play\s?station\w{0,2}\W{0,3}5|плейстейшн\s?5|плейстейшен\s?5|playsteyshon\s?5'
