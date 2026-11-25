@@ -10,7 +10,7 @@ $Headers    = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'; 'Ac
 # --- Telegram-каналы с ценами ---
 # Только публичные каналы с включённым веб-просмотром (открываются по адресу t.me/s/имя).
 # Kompyuter_playstation_texnikaa не добавлен: у него веб-просмотр выключен, без аккаунта его не прочитать.
-$TgChannels    = @('topgameuzb', 'pllayboxuz', 'ps_malika_a34')
+$TgChannels    = @('topgameuzb', 'pllayboxuz', 'ps_malika_a34', 'GameTech_PS', 'Gamer_zone_uz', 'ps_promarket')
 $TgActiveDays  = 4     # сколько дней после публикации пост считается актуальным предложением
 $TgHistoryDays = 10    # на сколько дней назад восстанавливать историю из каналов (это настоящие посты, не оценка)
 $RxTgUsd = '(?<![\d+])(\d{1,3}(?:[ .,]\d{3})+|\d{2,5})\s?(?:\$|у\.?\s?е\b|y\.?\s?e\b|dollar|долл)|\$\s?(\d{2,5})'
@@ -18,6 +18,14 @@ $RxTgUzs = '(?<![\d+])(\d{1,3}(?:[ .,]\d{3}){2,}|\d{6,9})\s?(?:сум|so[''`\u20
 # "млн" считаем ценой только с валютой рядом: иначе "9,69 млн предзаказов" из новости становится ценой
 $RxTgMln = '(?<![\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?(?:млн|mln|million|миллион)\.?\s?(?:сум|so[''`\u2019\u02BB]?m\b|sum\b|uzs)'
 $RxTgCity = 'toshkent|ташкент|tashkent|malika'
+
+# --- Магазины (новые консоли с гарантией) ---
+# Считаются отдельным источником и не смешиваются с ценами "с рук" (OLX + Telegram).
+$ShopsEnabled   = $true
+$AsaxiyUrl      = 'https://asaxiy.uz/product?key=playstation+5'
+$GlotrUrl       = 'https://glotr.uz/search/?term=playstation+5'
+# В магазинах в выдаче много аксессуаров "для PS5" / "PS5 uchun" - их отсекаем
+$RxShopExclude  = '\bдля\b|uchun|камера|kamera|гарнитур|garnitura|шлем|станци|stansiya|дисковод для|drayver uchun'
 
 # --- Фильтры по заголовку (регулярки, регистр не важен) ---
 # В заголовке обязательно должно быть упоминание PS5
@@ -35,7 +43,7 @@ $RxHacked   = 'vzlom|vzlim|взлом|прошит|прошив|proshiv|goldhen|
 # Модели
 $RxPro      = '(?<![a-zа-я])pro\b'
 $RxDigital  = 'digital|digtal|dgtil|didjital|диджитал|цифров|без\s?диск|diskovodsiz|diskavodsiz|disksiz|disk\s?siz'
-$RxDisc     = 'дисковод|дискавод|diskovod|diskavod|diskavot|diskovot|discovod|diskli|с\s?диск|\bdisc\b|\bdisk\b|\bcd\b|blu-?ray'
+$RxDisc     = 'disk\s?drayver|приводом|дисковод|дискавод|diskovod|diskavod|diskavot|diskovot|discovod|diskli|с\s?диск|\bdisc\b|\bdisk\b|\bcd\b|blu-?ray'
 
 # --- Очистка цен ---
 $MinUsd        = 200      # дешевле: почти всегда аксессуар, приманка или скам

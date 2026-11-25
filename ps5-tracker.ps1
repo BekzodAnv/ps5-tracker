@@ -309,6 +309,81 @@ function Get-TgSnapshot($Items, [string]$Day) {
     return , $out
 }
 
+# ---------------------------------------------------------------- Магазины (новые консоли)
+function Get-Html([string]$Url) {
+    try { return [string](Invoke-WebRequest -Uri $Url -Headers $Headers -UseBasicParsing -TimeoutSec 40 -ErrorAction Stop).Content }
+    catch { Write-Log ("  не удалось открыть {0}: {1}" -f $Url, $_.Exception.Message); return $null }
+}
+
+# Карточка магазина -> строка истории (или $null, если это не консоль PS5)
+function ConvertTo-ShopRow([string]$Shop, [string]$Title, [string]$PriceText, [string]$Url) {
+    $t = ([Net.WebUtility]::HtmlDecode($Title) -replace '\s+', ' ').Trim()
+    if ($t -notmatch $RxIsPs5 -or $t -match $RxExclude -or $t -match $RxShopExclude -or $t -match $RxMulti) { return $null }
+    $digits = $PriceText -replace '[^\d]', ''
+    if (-not $digits) { return $null }
+    $uzs = [double]$digits
+    $usd = $uzs / $script:Rate
+    if ($usd -lt $MinUsd -or $usd -gt $MaxUsd) { return $null }
+    return [pscustomobject]@{
+        date      = $Today
+        source    = 'live'
+        id        = ('shop:{0}:{1}' -f $Shop, ($Url -replace '^https?://[^/]+', ''))
+        model     = Get-Model $t
+        hacked    = 0
+        business  = 1
+        price_usd = [math]::Round($usd, 0)
+        price_uzs = [math]::Round($uzs, 0)
+        currency  = 'UZS'
+        city      = ''
+        created   = ''
+        title     = $t
+        url       = $Url
+        origin    = 'shop:' + $Shop
+    }
+}
+
+function Get-AsaxiyRows {
+    $html = Get-Html $AsaxiyUrl
+    if (-not $html) { return , @() }
+    $rows = @{}
+    foreach ($c in ($html -split 'class="product__item[ "]' | Select-Object -Skip 1)) {
+        $title = [regex]::Match($c, 'product__item__info-title"?[^>]*>([^<]+)').Groups[1].Value
+        $price = [regex]::Match($c, 'product__item-price"?[^>]*>([^<]+)').Groups[1].Value
+        $href  = [regex]::Match($c, 'href="(/product/[^"]+)"').Groups[1].Value
+        if (-not $title -or -not $href) { continue }
+        $r = ConvertTo-ShopRow 'asaxiy' $title $price ('https://asaxiy.uz' + $href)
+        if ($r) { $rows[$r.id] = $r }
+    }
+    return , @($rows.Values)
+}
+
+function Get-GlotrRows {
+    $html = Get-Html $GlotrUrl
+    if (-not $html) { return , @() }
+    $rows = @{}
+    foreach ($c in ($html -split "class='product-card '\s*>" | Select-Object -Skip 1)) {
+        $m = [regex]::Match($c, "href='(/[^']+-p-\d+/)'\s+class='product-card__link[^']*'>([^<]+)</a>")
+        if (-not $m.Success) { continue }
+        $stock = [regex]::Match($c, "text-stock[^']*'>\s*([^<]+?)\s*<").Groups[1].Value
+        if ($stock -and $stock -notmatch 'В наличии|mavjud') { continue }   # "Под заказ" не считаем
+        $price = [regex]::Match($c, 'proposal-price">\s*([\d\s]+)<').Groups[1].Value
+        $r = ConvertTo-ShopRow 'glotr' $m.Groups[2].Value $price ('https://glotr.uz' + $m.Groups[1].Value)
+        if ($r) { $rows[$r.id] = $r }
+    }
+    return , @($rows.Values)
+}
+
+function Invoke-CollectShops {
+    $all = New-Object System.Collections.ArrayList
+    foreach ($s in @(@{ name = 'Asaxiy'; fn = { Get-AsaxiyRows } }, @{ name = 'Glotr'; fn = { Get-GlotrRows } })) {
+        $rows = & $s.fn   # функция уже отдаёт массив; @() здесь завернул бы его ещё раз
+        Write-Log ("Магазин {0}: консолей PS5 в наличии {1}" -f $s.name, $rows.Count)
+        foreach ($r in $rows) { [void]$all.Add($r) }
+        Start-Sleep -Milliseconds $PauseMs
+    }
+    return , $all
+}
+
 # ---------------------------------------------------------------- Хранение
 function Read-History {
     if (-not (Test-Path $CsvPath)) { return , @() }
@@ -331,7 +406,8 @@ function Test-Hacked($r) { $r.hacked -eq '1' -or $r.hacked -eq 1 }
 function Get-CleanRows($Rows) {
     $base = @($Rows | Where-Object { $IncludeHacked -or -not (Test-Hacked $_) })
     $out = New-Object System.Collections.ArrayList
-    foreach ($g in ($base | Group-Object date, model)) {
+    # Выбросы ищем отдельно для рынка и для магазинов: у новых консолей свой уровень цен
+    foreach ($g in ($base | Group-Object date, model, { $_.origin -like 'shop:*' })) {
         $med = Get-Median @($g.Group | ForEach-Object { [double]$_.price_usd })
         foreach ($r in $g.Group) {
             $v = [double]$r.price_usd
@@ -401,10 +477,12 @@ function Build-Stats($History) {
     $clean = Get-CleanRows $History
     $dates = @($History | ForEach-Object date | Sort-Object -Unique)
     $last = $dates[-1]
+    # "all" = рынок с рук (OLX + Telegram). Магазины с новыми консолями считаются отдельно.
     $filters = [ordered]@{
-        all = { $true }
-        olx = { $_.origin -eq 'olx' }
-        tg  = { $_.origin -like 'tg:*' }
+        all  = { $_.origin -notlike 'shop:*' }
+        olx  = { $_.origin -eq 'olx' }
+        tg   = { $_.origin -like 'tg:*' }
+        shop = { $_.origin -like 'shop:*' }
     }
     $sources = [ordered]@{}
     foreach ($k in $filters.Keys) {
@@ -423,6 +501,7 @@ function Write-Report($Stats) {
         repo      = [string]$env:GITHUB_REPOSITORY
         models    = $Models
         tg        = [ordered]@{ channels = @($TgChannels); activeDays = $TgActiveDays }
+        shops     = @('Asaxiy', 'Glotr')
         sources   = $Stats.sources
     }
     $json = ConvertTo-Json -InputObject $data -Depth 10 -Compress
@@ -461,6 +540,8 @@ function Write-Summary($Stats) {
     $L.Add(('Средняя: ${0}{1}' -f (Format-Num $t.usd.avg), (Get-Delta $t.usd.avg $y.usd.avg)))
     if ($w) { $L.Add(('За неделю медиана: ${0} → ${1}' -f (Format-Num $w.usd.median), (Format-Num $t.usd.median))) }
     $L.Add(('Мин: ${0} · Макс: ${1}' -f (Format-Num $t.usd.min), (Format-Num $t.usd.max)))
+    $s = @($Stats.sources['shop'].days)[-1]
+    if ($s.n) { $L.Add(('Новая в магазинах: медиана ${0}, от ${1} ({2} шт.)' -f (Format-Num $s.usd.median), (Format-Num $s.usd.min), $s.n)) }
     $L.Add('')
     $L.Add('<b>Медиана по моделям</b>')
     foreach ($m in $Models) {
@@ -472,7 +553,7 @@ function Write-Summary($Stats) {
     $L.Add('')
     $L.Add('<b>Самые дешёвые сегодня</b>')
     $i = 0
-    foreach ($r in ($Stats.clean | Where-Object { $_.date -eq $t.date } | Sort-Object { [double]$_.price_usd } | Select-Object -First 5)) {
+    foreach ($r in ($Stats.clean | Where-Object { $_.date -eq $t.date -and $_.origin -notlike 'shop:*' } | Sort-Object { [double]$_.price_usd } | Select-Object -First 5)) {
         $i++
         $title = $r.title; if ($title.Length -gt 45) { $title = $title.Substring(0, 45) + '…' }
         $where = if ($r.origin -like 'tg:*') { '@' + $r.origin.Substring(3) } elseif ($r.city) { $r.city } else { 'OLX' }
@@ -495,8 +576,10 @@ if (-not $ReportOnly) {
     $tgToday = Get-TgSnapshot $tgItems $Today
     Write-Log ("Telegram: актуальных предложений сегодня {0}" -f $tgToday.Count)
 
+    $shopRows = if ($ShopsEnabled) { Invoke-CollectShops } else { @() }
+
     # Сегодняшние данные заменяют прошлый запуск за сегодня
-    $history = @($history | Where-Object { $_.date -ne $Today }) + @($olxRows) + @($tgToday)
+    $history = @($history | Where-Object { $_.date -ne $Today }) + @($olxRows) + @($tgToday) + @($shopRows)
 
     if ($Backfill) {
         # OLX не хранит историю цен. Восстанавливаем по дате публикации: объявление
