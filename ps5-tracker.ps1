@@ -144,7 +144,7 @@ function Invoke-Collect {
             price_uzs = [math]::Round($uzs, 0)
             currency  = $p.currency
             city      = [string]$o.location.city.name
-            created   = ([string]$o.created_time).Substring(0, 10)
+            created   = ConvertTo-TashkentDate $o.created_time
             title     = ($t -replace '[\r\n]+', ' ').Trim()
             url       = [string]$o.url
         })
@@ -155,9 +155,23 @@ function Invoke-Collect {
 }
 
 # ---------------------------------------------------------------- Хранение
+# Дата в виде yyyy-MM-dd по Ташкенту. PowerShell 7 (на GitHub) сам превращает ISO-строки из JSON
+# в DateTime, а PowerShell 5.1 оставляет строкой, поэтому разбираем оба варианта.
+function ConvertTo-TashkentDate($Value) {
+    if ($Value -is [DateTimeOffset]) { return $Value.UtcDateTime.AddHours(5).ToString('yyyy-MM-dd') }
+    if ($Value -is [DateTime])       { return $Value.ToUniversalTime().AddHours(5).ToString('yyyy-MM-dd') }
+    $s = [string]$Value
+    if ($s -match '^\d{4}-\d{2}-\d{2}')        { return $s.Substring(0, 10) }
+    if ($s -match '^(\d{2})/(\d{2})/(\d{4})') { return '{0}-{1}-{2}' -f $Matches[3], $Matches[1], $Matches[2] }
+    return $s
+}
+
 function Read-History {
-    if (Test-Path $CsvPath) { return , @(Import-Csv -Path $CsvPath -Encoding UTF8) }
-    return , @()
+    if (-not (Test-Path $CsvPath)) { return , @() }
+    $rows = @(Import-Csv -Path $CsvPath -Encoding UTF8)
+    # Починка строк, сохранённых в американском формате (MM/dd/yyyy) до исправления
+    foreach ($r in $rows) { if ($r.created -notmatch '^\d{4}-') { $r.created = ConvertTo-TashkentDate $r.created } }
+    return , $rows
 }
 
 function Save-History($Rows) {
