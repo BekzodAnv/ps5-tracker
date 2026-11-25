@@ -34,6 +34,9 @@ $Ru = [Globalization.CultureInfo]::GetCultureInfo('ru-RU')
 function Get-TashkentNow { [DateTime]::UtcNow.AddHours(5) }
 $Today = (Get-TashkentNow).ToString('yyyy-MM-dd')
 $script:Rate = $FallbackRate
+# Что вернул каждый источник за этот запуск. Пишется в docs/status.json, чтобы было видно,
+# если какой-то сайт перестал отдавать данные (например, начал блокировать серверы GitHub).
+$script:Health = [ordered]@{}
 $Models = @('Digital', 'С дисководом', 'Pro', 'Не указано')
 
 function Write-Log([string]$Message) {
@@ -165,6 +168,7 @@ function Invoke-CollectOlx {
     }
     Write-Log ("OLX: отобрано PS5 {0} (не PS5: {1}, мусор: {2}, сразу несколько моделей: {3}, без цены: {4}, вне диапазона цен: {5})" -f `
         $rows.Count, $skipped.notps5, $skipped.junk, $skipped.multi, $skipped.noprice, $skipped.range)
+    $script:Health['olx'] = "объявлений $($raw.Count), PS5 $($rows.Count)"
     return , $rows
 }
 
@@ -179,7 +183,10 @@ function Get-TgMessages([string]$Channel, [string]$SinceDate) {
         $resp = $null
         try { $resp = Invoke-WebRequest -Uri $url -Headers $Headers -UseBasicParsing -TimeoutSec 30 -MaximumRedirection 0 -ErrorAction Stop } catch { }
         if (-not $resp -or $resp.StatusCode -ne 200) {
-            if ($page -eq 0) { Write-Log ("Telegram @{0}: канал не открылся (закрыт или выключен веб-просмотр)" -f $Channel) }
+            if ($page -eq 0) {
+                Write-Log ("Telegram @{0}: канал не открылся (закрыт или выключен веб-просмотр)" -f $Channel)
+                $script:Health["tg:$Channel"] = 'не открылся'
+            }
             break
         }
         $blocks = @(([string]$resp.Content) -split '<div class="tgme_widget_message_wrap' | Select-Object -Skip 1)
@@ -288,6 +295,7 @@ function Invoke-CollectTelegram {
         $cnt = 0
         foreach ($m in $msgs) { foreach ($it in (Get-TgItems $m)) { [void]$items.Add($it); $cnt++ } }
         Write-Log ("Telegram @{0}: постов {1}, позиций PS5 с ценой {2}" -f $ch, $msgs.Count, $cnt)
+        if (-not $script:Health.Contains("tg:$ch")) { $script:Health["tg:$ch"] = "постов $($msgs.Count), позиций $cnt" }
     }
     return , $items
 }
@@ -312,7 +320,11 @@ function Get-TgSnapshot($Items, [string]$Day) {
 # ---------------------------------------------------------------- Магазины (новые консоли)
 function Get-Html([string]$Url) {
     try { return [string](Invoke-WebRequest -Uri $Url -Headers $Headers -UseBasicParsing -TimeoutSec 40 -ErrorAction Stop).Content }
-    catch { Write-Log ("  не удалось открыть {0}: {1}" -f $Url, $_.Exception.Message); return $null }
+    catch {
+        Write-Log ("  не удалось открыть {0}: {1}" -f $Url, $_.Exception.Message)
+        $script:Health['error ' + ([uri]$Url).Host] = $_.Exception.Message
+        return $null
+    }
 }
 
 # Карточка магазина -> строка истории (или $null, если это не консоль PS5)
@@ -346,7 +358,9 @@ function Get-AsaxiyRows {
     $html = Get-Html $AsaxiyUrl
     if (-not $html) { return , @() }
     $rows = @{}
-    foreach ($c in ($html -split 'class="product__item[ "]' | Select-Object -Skip 1)) {
+    $cards = @($html -split 'class="product__item[ "]' | Select-Object -Skip 1)
+    $script:Health['page:Asaxiy'] = "страница $($html.Length) байт, карточек $($cards.Count)"
+    foreach ($c in $cards) {
         $title = [regex]::Match($c, 'product__item__info-title"?[^>]*>([^<]+)').Groups[1].Value
         $price = [regex]::Match($c, 'product__item-price"?[^>]*>([^<]+)').Groups[1].Value
         $href  = [regex]::Match($c, 'href="(/product/[^"]+)"').Groups[1].Value
@@ -361,7 +375,9 @@ function Get-GlotrRows {
     $html = Get-Html $GlotrUrl
     if (-not $html) { return , @() }
     $rows = @{}
-    foreach ($c in ($html -split "class='product-card '\s*>" | Select-Object -Skip 1)) {
+    $cards = @($html -split "class='product-card '\s*>" | Select-Object -Skip 1)
+    $script:Health['page:Glotr'] = "страница $($html.Length) байт, карточек $($cards.Count)"
+    foreach ($c in $cards) {
         $m = [regex]::Match($c, "href='(/[^']+-p-\d+/)'\s+class='product-card__link[^']*'>([^<]+)</a>")
         if (-not $m.Success) { continue }
         $stock = [regex]::Match($c, "text-stock[^']*'>\s*([^<]+?)\s*<").Groups[1].Value
@@ -378,6 +394,7 @@ function Invoke-CollectShops {
     foreach ($s in @(@{ name = 'Asaxiy'; fn = { Get-AsaxiyRows } }, @{ name = 'Glotr'; fn = { Get-GlotrRows } })) {
         $rows = & $s.fn   # функция уже отдаёт массив; @() здесь завернул бы его ещё раз
         Write-Log ("Магазин {0}: консолей PS5 в наличии {1}" -f $s.name, $rows.Count)
+        $script:Health["shop:$($s.name)"] = "консолей $($rows.Count); $($script:Health["page:$($s.name)"])"
         foreach ($r in $rows) { [void]$all.Add($r) }
         Start-Sleep -Milliseconds $PauseMs
     }
@@ -509,7 +526,7 @@ function Write-Report($Stats) {
     $html = $tpl.Replace('/*__DATA__*/null', $json)
     [IO.File]::WriteAllText($ReportPath, $html, (New-Object Text.UTF8Encoding $false))
     # Маленький файл, по которому кнопка "Обновить" понимает, что новая версия уже выложена
-    $status = ConvertTo-Json -Compress -InputObject ([ordered]@{ generated = $generated; days = @($Stats.dates).Count })
+    $status = ConvertTo-Json -Compress -InputObject ([ordered]@{ generated = $generated; days = @($Stats.dates).Count; sources = $script:Health })
     [IO.File]::WriteAllText($StatusPath, $status, (New-Object Text.UTF8Encoding $false))
     Write-Log "Страница: $ReportPath"
 }
