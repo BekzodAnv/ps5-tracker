@@ -593,7 +593,10 @@ if (-not $ReportOnly) {
     $tgToday = Get-TgSnapshot $tgItems $Today
     Write-Log ("Telegram: актуальных предложений сегодня {0}" -f $tgToday.Count)
 
-    $shopRows = if ($ShopsEnabled) { Invoke-CollectShops } else { @() }
+    # Asaxiy и Glotr не пускают серверы GitHub (403/429), поэтому магазины собираются только с обычного компьютера
+    $onGitHub = $env:GITHUB_ACTIONS -eq 'true'
+    $shopRows = if ($ShopsEnabled -and -not $onGitHub) { Invoke-CollectShops } else { @() }
+    if ($ShopsEnabled -and $onGitHub) { $script:Health['shops'] = 'пропущены: собираются только с компьютера' }
 
     # Сегодняшние данные заменяют прошлый запуск за сегодня
     $history = @($history | Where-Object { $_.date -ne $Today }) + @($olxRows) + @($tgToday) + @($shopRows)
