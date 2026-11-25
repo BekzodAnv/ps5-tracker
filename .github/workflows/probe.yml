@@ -1,0 +1,38 @@
+# Временная проверка: какие магазины отвечают серверам GitHub на обычный запрос.
+# Результат пишется в аннотации запуска. Файл будет удалён после проверки.
+name: Проверка доступа к магазинам
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/probe.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Обычные запросы к сайтам магазинов
+        run: |
+          for u in \
+            https://www.olx.uz/ \
+            https://asaxiy.uz/product?key=playstation+5 \
+            https://glotr.uz/search/?term=playstation+5 \
+            "https://mediapark.uz/search?q=playstation%205" \
+            "https://uzum.uz/ru/search?query=playstation%205" \
+            https://texnomart.uz/ \
+            "https://olcha.uz/ru/search?q=playstation" \
+            "https://idea.uz/search?q=playstation" \
+            "https://alifshop.uz/ru/search?q=playstation" \
+            https://elmakon.uz/ \
+            https://goodzone.uz/ \
+            https://www.prom.uz/ ; do
+            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 25 "$u" || echo ERR)
+            size=$(wc -c < /tmp/body 2>/dev/null || echo 0)
+            echo "::notice title=probe::$code size=$size $u"
+            sleep 2
+          done
