@@ -117,6 +117,8 @@ td a:hover { text-decoration: underline; }
 .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--chip); color: var(--text-secondary); margin-left: 6px; white-space: nowrap; }
 .tag.new { color: var(--series-1); }
 .scroll { overflow-x: auto; }
+td.posted { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.posted .ago { color: var(--text-muted); font-size: 12px; }
 details summary { cursor: pointer; color: var(--text-secondary); font-size: 14px; }
 details[open] summary { margin-bottom: 10px; }
 .note { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
@@ -321,17 +323,31 @@ function renderCharts() {
   }));
 }
 
+// Дата публикации: "20.11.2026" и под ней "5 дн. назад" (считаем от дня сбора, а не от часов браузера)
+function postedHtml(created) {
+  if (!created) return '—';
+  const days = Math.round((Date.parse(last.date) - Date.parse(created)) / 86400000);
+  let ago;
+  if (days <= 0) ago = 'сегодня';
+  else if (days === 1) ago = 'вчера';
+  else if (days < 60) ago = days + ' дн. назад';
+  else if (days < 730) ago = Math.round(days / 30) + ' мес. назад';
+  else ago = Math.round(days / 365) + ' г. назад';
+  return `${created.split('-').reverse().join('.')}<br><span class="ago">${ago}</span>`;
+}
+
 function renderCheap() {
   const rows = DATA.cheapest;
   document.getElementById('cheapHint').textContent = `Топ-${rows.length} за ${last.date.split('-').reverse().join('.')}, без взломанных консолей.`;
   const alt = cur === 'usd' ? 'uzs' : 'usd';
   document.getElementById('cheap').innerHTML =
-    `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Объявление</th><th>Модель</th><th class="hide-sm">Город</th></tr></thead><tbody>` +
+    `<thead><tr><th class="num">Цена</th><th class="num hide-sm">${alt === 'uzs' ? 'В сумах' : 'В $'}</th><th>Объявление</th><th>Модель</th><th>Выложено</th><th class="hide-sm">Город</th></tr></thead><tbody>` +
     rows.map((r) => `<tr>
       <td class="num"><b>${fmt(r[cur])}</b></td>
       <td class="num hide-sm">${fmt(r[alt], alt)}</td>
       <td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${r.isNew ? '<span class="tag new">новое</span>' : ''}${r.business ? '<span class="tag">магазин</span>' : ''}</td>
       <td>${esc(r.model)}</td>
+      <td class="posted">${postedHtml(r.created)}</td>
       <td class="hide-sm">${esc(r.city)}</td></tr>`).join('') + '</tbody>';
 }
 
