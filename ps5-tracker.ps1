@@ -161,6 +161,8 @@ function Invoke-CollectOlx {
             currency  = $p.currency
             city      = [string]$o.location.city.name
             created   = ConvertTo-TashkentDate $o.created_time
+            # OLX показывает как "Опубликовано" дату последнего поднятия/обновления, а не создания
+            posted    = ConvertTo-TashkentDate $(if ($o.last_refresh_time) { $o.last_refresh_time } else { $o.created_time })
             title     = ($t -replace '[\r\n]+', ' ').Trim()
             url       = [string]$o.url
             origin    = 'olx'
@@ -326,11 +328,22 @@ function Read-History {
     }
     # Починка строк, сохранённых в американском формате (MM/dd/yyyy)
     foreach ($r in $rows) { if ($r.created -notmatch '^\d{4}-') { $r.created = ConvertTo-TashkentDate $r.created } }
+    Add-PostedColumn $rows
     return , $rows
 }
 
+# posted: дата, которую площадка показывает как дату публикации. В старых строках её нет, берём created.
+function Add-PostedColumn($Rows) {
+    foreach ($r in $Rows) {
+        if (-not ($r.PSObject.Properties.Name -contains 'posted')) { $r | Add-Member -NotePropertyName posted -NotePropertyValue $r.created }
+        elseif (-not $r.posted) { $r.posted = $r.created }
+    }
+}
+
 function Save-History($Rows) {
-    $Rows | Sort-Object date, id | Export-Csv -Path $CsvPath -NoTypeInformation -Encoding UTF8
+    Add-PostedColumn $Rows
+    $cols = 'date','source','id','model','hacked','business','price_usd','price_uzs','currency','city','created','posted','title','url','origin'
+    $Rows | Sort-Object date, id | Select-Object $cols | Export-Csv -Path $CsvPath -NoTypeInformation -Encoding UTF8
 }
 
 # ---------------------------------------------------------------- Статистика
@@ -399,7 +412,7 @@ function Get-Cheapest($Clean, $Hist, [string]$LastDate) {
     return , @($Clean | Where-Object { $_.date -eq $LastDate } | Sort-Object { [double]$_.price_usd } | Select-Object -First 15 | ForEach-Object {
         [ordered]@{
             title = $_.title; model = $_.model; usd = [double]$_.price_usd; uzs = [double]$_.price_uzs
-            city = $_.city; created = $_.created; url = $_.url; business = ($_.business -eq '1')
+            city = $_.city; created = $(if ($_.posted) { $_.posted } else { $_.created }); url = $_.url; business = ($_.business -eq '1')
             origin = $_.origin; isNew = [bool]($prevDate -and -not $prevIds.ContainsKey($_.id))
         }
     })
