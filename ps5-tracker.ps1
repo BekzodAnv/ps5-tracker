@@ -250,6 +250,7 @@ function Get-TgItems($Msg) {
     $title = $null
     $ctx = New-Object System.Collections.Generic.List[string]
     $n = 0
+    if ($Msg.text -match $RxTgSold) { return , $items }
     $city = if ($Msg.text -match $RxTgCity) { 'Ташкент' } else { '' }
     foreach ($raw in ($Msg.text -split "`n")) {
         $l = $raw.Trim()
